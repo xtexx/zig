@@ -4105,7 +4105,7 @@ pub fn getTarget(self: *const Elf) *const std.Target {
 fn requiresThunks(self: Elf) bool {
     return switch (self.getTarget().cpu.arch) {
         .aarch64, .aarch64_be => true,
-        .x86_64, .riscv64, .riscv64be => false,
+        .x86_64, .riscv64, .riscv64be, .loongarch32, .loongarch64 => false,
         else => @panic("TODO unimplemented architecture"),
     };
 }
@@ -4351,7 +4351,7 @@ fn createThunks(elf_file: *Elf, atom_list: *AtomList) !void {
     // `2^(jump_bits - 1) - margin` where margin is some arbitrary number.
     const max_distance = switch (cpu_arch) {
         .aarch64, .aarch64_be => 0x500_000,
-        .x86_64, .riscv64, .riscv64be => unreachable,
+        .x86_64, .riscv64, .riscv64be, .loongarch32, .loongarch64 => unreachable,
         else => @panic("unhandled arch"),
     };
 
