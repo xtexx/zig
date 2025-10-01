@@ -113,6 +113,10 @@ pub fn hasValgrindSupport(target: *const std.Target, backend: std.builtin.Compil
             .linux, .freebsd => true,
             else => false,
         },
+        .loongarch32, .loongarch64 => switch (target.os.tag) {
+            .linux => backend != .stage2_loongarch, // Insufficient inline assembly support in self-hosted.
+            else => false,
+        },
         .mips, .mipsel, .mips64, .mips64el => switch (target.os.tag) {
             .linux => true,
             else => false,
@@ -804,6 +808,7 @@ pub fn supportsThreads(target: *const std.Target, backend: std.builtin.CompilerB
     _ = target;
     return switch (backend) {
         .stage2_aarch64 => false,
+        .stage2_loongarch => false,
         else => true,
     };
 }
@@ -865,6 +870,7 @@ pub fn zigBackend(target: *const std.Target, use_llvm: bool) std.builtin.Compile
     return switch (target.cpu.arch) {
         .aarch64, .aarch64_be => .stage2_aarch64,
         .arm, .armeb, .thumb, .thumbeb => .stage2_arm,
+        .loongarch32, .loongarch64 => .stage2_loongarch,
         .powerpc, .powerpcle, .powerpc64, .powerpc64le => .stage2_powerpc,
         .riscv64 => .stage2_riscv64,
         .sparc64 => .stage2_sparc64,

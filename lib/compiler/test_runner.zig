@@ -23,6 +23,7 @@ var runner_threaded_io: Io.Threaded = .init_single_threaded;
 /// the test runner will communicate with the build runner via `std.zig.Server`.
 const need_simple = switch (builtin.zig_backend) {
     .stage2_aarch64,
+    .stage2_loongarch,
     .stage2_powerpc,
     .stage2_riscv64,
     => true,
