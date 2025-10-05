@@ -666,6 +666,7 @@ pub const Reloc = extern struct {
         AARCH64: std.elf.R_AARCH64,
         RISCV: std.elf.R_RISCV,
         PPC64: std.elf.R_PPC64,
+        LARCH: std.elf.R_LARCH,
 
         pub fn none(elf: *Elf) Reloc.Type {
             return switch (elf.ehdrField(.machine)) {
@@ -683,6 +684,7 @@ pub const Reloc = extern struct {
                 .PPC64 => .{ .PPC64 = .ADDR64 },
                 .RISCV => .{ .RISCV = .@"64" },
                 .X86_64 => .{ .X86_64 = .@"64" },
+                .LOONGARCH => .{ .LARCH = .@"64" },
             };
         }
         pub fn sizeAddr(elf: *Elf) Reloc.Type {
@@ -832,6 +834,53 @@ pub const Reloc = extern struct {
                             elf.targetLoad(&target_sym.size) +% @as(u64, @bitCast(reloc.addend)),
                             target_endian,
                         ),
+                    },
+                    .LOONGARCH => {
+                        const Instruction = @import("../codegen/loongarch/encoding.zig").Instruction;
+                        const utils: struct {
+                            code: []u8,
+                            inline fn readInstruction(utils: @This(), offset: usize) Instruction {
+                                return .{ .word = std.mem.readInt(
+                                    u32,
+                                    utils.code[offset * 4 .. (offset + 1) * 4],
+                                    .little,
+                                ) };
+                            }
+                            inline fn writeInstruction(utils: @This(), offset: usize, instruction: Instruction) void {
+                                std.mem.writeInt(
+                                    u32,
+                                    utils.code[offset * 4 .. (offset + 1) * 4],
+                                    instruction.word,
+                                    .little,
+                                );
+                            }
+                        } = .{ .code = loc_slice };
+                        switch (reloc.type.LARCH) {
+                            else => |kind| @panic(@tagName(kind)),
+                            .@"64" => std.mem.writeInt(
+                                u64,
+                                loc_slice[0..8],
+                                target_value,
+                                target_endian,
+                            ),
+                            .@"32" => std.mem.writeInt(
+                                u32,
+                                loc_slice[0..4],
+                                @intCast(target_value),
+                                target_endian,
+                            ),
+                            .CALL36 => {
+                                const pcrel_value: i38 = @intCast(@as(i64, @bitCast(target_value -%
+                                    (elf.targetLoad(&loc_sym.value) + reloc.offset))));
+                                assert(pcrel_value & 0b11 == 0);
+                                var inst_pcaddu18i = utils.readInstruction(0);
+                                var inst_jirl = utils.readInstruction(1);
+                                inst_pcaddu18i.DSj20.si20 = @intCast(pcrel_value >> 18);
+                                inst_jirl.DJSk16.si16 = @intCast(pcrel_value >> 2);
+                                utils.writeInstruction(0, inst_pcaddu18i);
+                                utils.writeInstruction(1, inst_jirl);
+                            },
+                        }
                     },
                 }
             },
