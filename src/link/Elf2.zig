@@ -1494,6 +1494,7 @@ fn initHeaders(
                     else => @panic(@tagName(machine)),
                     .@"386" => 3 * 4,
                     .X86_64 => 3 * 8,
+                    .LOONGARCH => 4 * 8,
                 },
                 .addralign = addr_align,
             },
@@ -1502,6 +1503,7 @@ fn initHeaders(
             switch (machine) {
                 else => @panic(@tagName(machine)),
                 .X86_64 => .{ 16, .@"16", true },
+                .LOONGARCH => .{ 4 * 4, .@"4", false },
             };
         assert(elf.si.plt == try elf.addSection(elf.ni.text, .{
             .name = ".plt",
@@ -2841,7 +2843,7 @@ pub fn addRelocAssumeCapacity(
             .EXEC, .DYN => {
                 switch (elf.ehdrField(.machine)) {
                     else => |machine| @panic(@tagName(machine)),
-                    .AARCH64, .PPC64, .RISCV => {},
+                    .AARCH64, .PPC64, .RISCV, .LOONGARCH => {},
                     .X86_64 => switch (@"type".X86_64) {
                         else => {},
                         .TLSLD => switch (elf.got.tlsld) {
@@ -3443,7 +3445,7 @@ fn flushMoved(elf: *Elf, ni: MappedFile.Node.Index) !void {
                                 ));
                                 switch (elf.ehdrField(.machine)) {
                                     else => |machine| @panic(@tagName(machine)),
-                                    .AARCH64, .PPC64, .RISCV => {},
+                                    .AARCH64, .PPC64, .RISCV, .LOONGARCH => {},
                                     .X86_64 => for (relas) |*rela| switch (@as(
                                         std.elf.R_X86_64,
                                         @enumFromInt(elf.targetLoad(&rela.info).type),
@@ -3471,7 +3473,7 @@ fn flushMoved(elf: *Elf, ni: MappedFile.Node.Index) !void {
                                 const plt_sec_slice = elf.si.plt_sec.node(elf).slice(&elf.mf);
                                 switch (elf.ehdrField(.machine)) {
                                     else => |machine| @panic(@tagName(machine)),
-                                    .AARCH64, .PPC64, .RISCV => {},
+                                    .AARCH64, .PPC64, .RISCV, .LOONGARCH => {},
                                     .X86_64 => {
                                         for (relas) |*rela| switch (@as(
                                             std.elf.R_X86_64,
@@ -3503,7 +3505,7 @@ fn flushMoved(elf: *Elf, ni: MappedFile.Node.Index) !void {
                                 const plt_sec_slice = ni.slice(&elf.mf);
                                 switch (elf.ehdrField(.machine)) {
                                     else => |machine| @panic(@tagName(machine)),
-                                    .AARCH64, .PPC64, .RISCV => {},
+                                    .AARCH64, .PPC64, .RISCV, .LOONGARCH => {},
                                     .X86_64 => for (0..elf.got.plt.count()) |plt_index| {
                                         const slice = plt_sec_slice[16 * plt_index + 6 ..][0..4];
                                         std.mem.writeInt(
@@ -3585,7 +3587,7 @@ fn flushResized(elf: *Elf, ni: MappedFile.Node.Index) !void {
                         switch (elf.targetLoad(&next_ph.type)) {
                             else => unreachable,
                             .NULL, .LOAD => {},
-                            .DYNAMIC, .INTERP, .PHDR, .TLS => break,
+                            .DYNAMIC, .INTERP, .PHDR, .TLS, std.elf.PT.GNU_RELRO => break,
                         }
                         const next_vaddr = elf.targetLoad(&next_ph.vaddr);
                         if (vaddr + memsz <= next_vaddr) break;

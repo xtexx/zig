@@ -226,6 +226,7 @@ pub const Env = enum {
                 .incremental,
                 .legalize,
                 .loongarch_backend,
+                .elf_linker,
                 .elf2_linker,
                 => true,
                 else => Env.sema.supports(feature),

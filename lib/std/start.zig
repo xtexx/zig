@@ -111,7 +111,9 @@ fn main2() callconv(.c) c_int {
 }
 
 fn _start2() callconv(.withStackAlign(.c, 1)) noreturn {
-    std.posix.exit(callMain());
+    // std.posix.exit();
+    _ = callMain();
+    unreachable;
 }
 
 fn spirvMain2() callconv(.kernel) void {

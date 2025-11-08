@@ -35,6 +35,7 @@ pub const Register = enum(u7) {
     pub const t3: Register = .r15;
 
     pub const Class = enum { int, fp, fcc };
+    pub const Modifier = enum { general, lsx, lasx };
 
     pub fn class(reg: Register) Class {
         return switch (@intFromEnum(reg)) {
